@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dealbreaker-ai-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "M&A due diligence AI agent system powered by Google ADK and Gemini."
+
+dependencies = [
+    # Core ADK runtime — pinned to tested version
+    "google-adk[a2a]==2.3.0",
+
+    # Charting (risk matrix PNG)
+    "matplotlib==3.10.9",
+    "numpy>=1.24",
+
+    # PDF report rendering — weasyprint requires GTK/Pango; reportlab is the Windows fallback
+    "weasyprint>=62",
+    "reportlab>=4.2",
+
+    # Data validation
+    "pydantic==2.13.4",
+
+    # Structured JSON audit logging
+    "structlog>=24.0",
+
+    # MCP client/server
+    "mcp==1.28.0",
+
+    # Async HTTP (EDGAR, CourtListener, news APIs)
+    "httpx==0.28.1",
+
+    # PII redaction (PIIRedactionPlugin)
+    "presidio-analyzer>=2.2",
+    "presidio-anonymizer>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff",
+    "pyright",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

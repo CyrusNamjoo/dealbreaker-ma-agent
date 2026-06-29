@@ -1,0 +1,423 @@
+[
+  {
+    "eval_id": "leg_001_salesforce",
+    "description": "Salesforce (CRM) — expected clean legal profile for a large SaaS company. Tests correct identification of manageable data-privacy exposure (GDPR, CCPA) and routine employment litigation without false dealbreaker escalation. Expected: PROCEED_WITH_CONDITIONS, 0 dealbreakers.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Review all public legal records for Salesforce. Map corporate structure, search litigation for the past 5 years, check IP ownership, screen regulatory compliance, and flag any dealbreakers."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "verify_corporate_structure",
+            "tool_input": {
+              "company_name": "Salesforce",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "search_litigation_records",
+            "tool_input": {
+              "company_name": "Salesforce",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "check_ip_ownership",
+            "tool_input": {
+              "company_name": "Salesforce"
+            }
+          },
+          {
+            "tool_name": "screen_regulatory_compliance",
+            "tool_input": {
+              "business_description": "Cloud CRM and enterprise software",
+              "jurisdictions": ["US", "EU"]
+            }
+          },
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Salesforce corporate structure: Incorporated in Delaware (SEC CIK 0001108524); ~60 wholly owned subsidiaries including Slack Technologies LLC, Tableau Software LLC, MuleSoft LLC. No sanctioned entities. Active litigation (past 5 years): (1) Securities class action re: FY2023 guidance (settled ~$125M, 2023); (2) Employment class actions in California (wage/hour — routine for CA-based tech). OFAC/SDN check: CLEAN. IP: 3,200+ granted US patents; no material unresolved IP disputes (Slack IP absorbed cleanly). Regulatory: GDPR compliance active (EU operations under Salesforce EMEA Ltd Ireland); CCPA certified; no FTC enforcement actions on record. CHANGE OF CONTROL: Slack acquisition agreement (Exhibit 2.1, 8-K filed 2020-12-01) contains standard CoC provisions that may require consent from key enterprise customers. DEALBREAKERS: none. CourtListener docket: no material unresolved cases above $10M."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Salesforce",
+        "industry": "SaaS",
+        "deal_value": 200000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_leg_001",
+        "deal_jurisdictions": ["US", "EU"],
+        "scope": "Legal due diligence — litigation, IP, corporate structure, regulatory compliance",
+        "acquirer_description": "Strategic enterprise software acquirer"
+      }
+    },
+    "assertions": {
+      "output_schema": "LegalFindings",
+      "dealbreaker_count_max": 0,
+      "must_check_ofac": true,
+      "must_verify_change_of_control_clauses": true,
+      "source_citation_required": true,
+      "citation_must_include_any": ["courtlistener.com", "sec.gov", "CourtListener", "EDGAR"],
+      "min_findings_count": 2,
+      "expected_deal_recommendation": "PROCEED_WITH_CONDITIONS",
+      "primary_ticker": "CRM",
+      "edgar_cik": "0001108524"
+    }
+  },
+
+  {
+    "eval_id": "leg_002_meta",
+    "description": "Meta Platforms (META) — high regulatory-risk case. Tests dealbreaker detection on: (1) active FTC antitrust suit seeking Instagram/WhatsApp divestiture (filed 2020, ongoing); (2) EU €1.2B GDPR fine (May 2023, DPC Ireland) with structural data-transfer order; (3) EU DMA gatekeeper obligations with non-compliance enforcement risk. Expected: DO_NOT_PROCEED, at least 2 dealbreakers.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Review all public legal records for Meta Platforms. Map corporate structure, search litigation for the past 5 years, check IP ownership, screen regulatory compliance, and flag any dealbreakers."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "verify_corporate_structure",
+            "tool_input": {
+              "company_name": "Meta Platforms",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "search_litigation_records",
+            "tool_input": {
+              "company_name": "Meta Platforms",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "check_ip_ownership",
+            "tool_input": {
+              "company_name": "Meta Platforms"
+            }
+          },
+          {
+            "tool_name": "screen_regulatory_compliance",
+            "tool_input": {
+              "business_description": "Social media, advertising, VR/AR platforms",
+              "jurisdictions": ["US", "EU"]
+            }
+          },
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Meta Platforms corporate structure: Delaware corporation (SEC CIK 0001326801); key subsidiaries include Instagram LLC, WhatsApp Inc., Oculus VR LLC. DEALBREAKER 1 — FTC ANTITRUST: FTC v. Meta Platforms Inc., Case 1:20-cv-03590 (D.D.C.), filed Dec 2020. FTC alleges illegal monopolization of personal social networking via acquisitions of Instagram (2012) and WhatsApp (2014) in violation of Sherman Act §2. Remedy sought: divestiture of Instagram and/or WhatsApp. Case survived motion to dismiss (Jan 2022); trial scheduled 2024. An acquisition closing during active antitrust litigation seeking divestiture of core assets represents a MATERIAL DEALBREAKER — deal may be enjoined or unwound post-close. DEALBREAKER 2 — GDPR ENFORCEMENT: Irish Data Protection Commission (DPC) Decision of May 22, 2023: €1.2 billion fine (largest GDPR fine in history) + binding order to suspend EU-US personal data transfers within 5 months unless adequacy framework compliant. Meta appealed; Data Privacy Framework (Jul 2023) partially addresses transfer mechanism but DPC oversight remains active. Structural compliance order constrains EU data operations. IP: 17,000+ US patents. No OFAC issues. REGULATORY GAPS: DMA gatekeeper designation (2023); non-compliance penalties up to 10% global revenue or 20% for repeat infringement."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Meta Platforms",
+        "industry": "Social Media and Advertising",
+        "deal_value": 1200000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_leg_002",
+        "deal_jurisdictions": ["US", "EU"],
+        "scope": "Legal due diligence — litigation, IP, corporate structure, regulatory compliance",
+        "acquirer_description": "Strategic digital media or technology acquirer"
+      }
+    },
+    "assertions": {
+      "output_schema": "LegalFindings",
+      "dealbreaker_count_min": 2,
+      "dealbreaker_count_max": 5,
+      "dealbreakers_must_include_any": ["FTC", "antitrust", "divestiture", "GDPR", "data transfer", "DMA"],
+      "must_check_ofac": true,
+      "source_citation_required": true,
+      "citation_must_include_any": ["courtlistener.com", "ftc.gov", "edpb.europa.eu", "CourtListener", "FTC"],
+      "min_findings_count": 4,
+      "expected_deal_recommendation": "DO_NOT_PROCEED",
+      "primary_ticker": "META",
+      "edgar_cik": "0001326801",
+      "regulatory_bodies_must_identify": ["FTC", "EU DPC", "EU Commission"]
+    }
+  },
+
+  {
+    "eval_id": "leg_003_boeing",
+    "description": "Boeing (BA) — severe legal exposure case. Tests detection of multiple concurrent dealbreakers: (1) DOJ criminal deferred prosecution agreement (DPA) and subsequent 2024 guilty plea for 737 MAX fraud; (2) FAA enhanced oversight agreement limiting production; (3) 346 wrongful-death product liability suits (active). Expected: DO_NOT_PROCEED, 3+ dealbreakers. Critical recall test — all three must be identified.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Review all public legal records for Boeing. Map corporate structure, search litigation for the past 5 years, check IP ownership, screen regulatory compliance, and flag any dealbreakers."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "verify_corporate_structure",
+            "tool_input": {
+              "company_name": "Boeing",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "search_litigation_records",
+            "tool_input": {
+              "company_name": "Boeing",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "check_ip_ownership",
+            "tool_input": {
+              "company_name": "Boeing"
+            }
+          },
+          {
+            "tool_name": "screen_regulatory_compliance",
+            "tool_input": {
+              "business_description": "Commercial and defense aerospace manufacturer",
+              "jurisdictions": ["US"]
+            }
+          },
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Boeing corporate structure: Delaware corporation (SEC CIK 0000012927); principal subsidiaries include Boeing Commercial Airplanes, Boeing Defense Space & Security, Boeing Global Services. DEALBREAKER 1 — DOJ CRIMINAL: U.S. v. The Boeing Company, Case 4:21-cr-00005 (N.D. Tex.). Original DPA (Jan 2021) imposed $2.5B total: $243.6M criminal fine, $1.77B to airlines, $500M victim fund. Boeing breached DPA conditions; DOJ filed 2024 motion. Boeing entered guilty plea to conspiracy to defraud charge (Jul 2024), face up to $24.8B additional fine. Acquiring a company under active federal criminal prosecution and facing potential corporate felony conviction is a MATERIAL DEALBREAKER — would bar Boeing from federal contracting (defense, NASA). DEALBREAKER 2 — FAA OVERSIGHT: FAA Enhanced Oversight Agreement (Jun 2024) capping 737 MAX monthly production at 38/month with enhanced audits; Boeing must remediate 97 manufacturing non-conformances before rate increase permitted. Production cap directly constrains revenue recovery — acquirer inherits FAA remediation obligations. DEALBREAKER 3 — MASS TORT: ~346 wrongful death cases from Lion Air 610 (Oct 2018) and Ethiopian Airlines 302 (Mar 2019) crashes; U.S. federal MDL litigation (N.D. Tex.); Boeing agreed to $160M victim families fund (not full settlement). Additional door plug blowout cases (Alaska Airlines 1282, Jan 2024) active. Aggregate unresolved liability estimated $10B+. OFAC: CLEAN. IP: extensive aerospace patents; no material IP disputes."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Boeing",
+        "industry": "Aerospace and Defense",
+        "deal_value": 100000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_leg_003",
+        "deal_jurisdictions": ["US"],
+        "scope": "Legal due diligence — litigation, IP, corporate structure, regulatory compliance",
+        "acquirer_description": "Strategic aerospace or defense acquirer"
+      }
+    },
+    "assertions": {
+      "output_schema": "LegalFindings",
+      "dealbreaker_count_min": 3,
+      "dealbreaker_count_max": 6,
+      "dealbreakers_must_include_all": [
+        "DOJ criminal",
+        "FAA",
+        "wrongful death"
+      ],
+      "dealbreakers_must_include_any": ["737 MAX", "DPA", "guilty plea", "production cap", "mass tort", "Lion Air", "Ethiopian Airlines"],
+      "must_check_ofac": true,
+      "source_citation_required": true,
+      "citation_must_include_any": ["courtlistener.com", "justice.gov", "faa.gov", "CourtListener", "DOJ"],
+      "min_findings_count": 5,
+      "expected_deal_recommendation": "DO_NOT_PROCEED",
+      "primary_ticker": "BA",
+      "edgar_cik": "0000012927",
+      "recall_criticality": "high",
+      "recall_note": "Missing any of the three named dealbreakers is a test failure — Boeing's legal profile is widely documented in public court records and press releases."
+    }
+  },
+
+  {
+    "eval_id": "leg_004_apple",
+    "description": "Apple (AAPL) — moderate antitrust exposure with active regulatory proceedings. Tests detection of: App Store antitrust proceedings (EU DMA, DOJ 2024 complaint) without false escalation to DO_NOT_PROCEED. Apple has managed antitrust exposure without operational disruption to date. Expected: PROCEED_WITH_CONDITIONS, 0 dealbreakers (antitrust is monitored but not disqualifying at this stage).",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Review all public legal records for Apple Inc. Map corporate structure, search litigation for the past 5 years, check IP ownership, screen regulatory compliance, and flag any dealbreakers."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "verify_corporate_structure",
+            "tool_input": {
+              "company_name": "Apple",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "search_litigation_records",
+            "tool_input": {
+              "company_name": "Apple",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "check_ip_ownership",
+            "tool_input": {
+              "company_name": "Apple"
+            }
+          },
+          {
+            "tool_name": "screen_regulatory_compliance",
+            "tool_input": {
+              "business_description": "Consumer electronics, App Store, streaming, financial services",
+              "jurisdictions": ["US", "EU"]
+            }
+          },
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Apple corporate structure: California corporation (SEC CIK 0000320193); key subsidiaries include Apple Distribution International Ltd (Ireland), iTunes S.à r.l. (Luxembourg), AppleCare Service Company Inc. ACTIVE ANTITRUST (monitored, not dealbreaker): (1) DOJ v. Apple Inc., 2:24-cv-04055 (D.N.J.), filed Mar 2024 — DOJ alleges monopolization of smartphone market; Apple filed motion to dismiss Jul 2024; early-stage, no injunction or structural remedy ordered. (2) EU DMA: Apple designated gatekeeper (Sep 2023); App Store, iOS, Safari, iCloud subject to interoperability requirements; EC opened non-compliance proceedings Mar 2024 re: Core Technology Fee structure; potential fine up to 10% global revenue (~$39B) if violation found. (3) Epic Games v. Apple (App Store) — partially resolved; 9th Circuit 2023 affirmed Apple not an illegal monopolist under Sherman Act. IP: ~22,000 active US patents; trademark registrations in 180+ jurisdictions. Patent disputes: Masimo (health sensors — settlement 2024); Qualcomm (modems — settled 2019). OFAC: CLEAN. No criminal proceedings. DEALBREAKERS: 0 — antitrust cases are active but no injunction or structural remedy in effect; App Store economics are being monitored, not unwound. Compliance cost risk: estimated €500M-€1B/year in EU compliance. SEC filing: CIK 0000320193."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Apple",
+        "industry": "Consumer Electronics and Services",
+        "deal_value": 3500000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_leg_004",
+        "deal_jurisdictions": ["US", "EU"],
+        "scope": "Legal due diligence — litigation, IP, corporate structure, regulatory compliance",
+        "acquirer_description": "Strategic technology acquirer seeking consumer hardware and services platform"
+      }
+    },
+    "assertions": {
+      "output_schema": "LegalFindings",
+      "dealbreaker_count_max": 0,
+      "must_identify_proceedings": ["DOJ antitrust", "EU DMA", "App Store"],
+      "false_positive_check": "Agent must NOT escalate to dealbreaker — these are active but pre-injunction antitrust cases with no structural remedy in force",
+      "must_check_ofac": true,
+      "source_citation_required": true,
+      "citation_must_include_any": ["courtlistener.com", "justice.gov", "ec.europa.eu", "CourtListener"],
+      "min_findings_count": 3,
+      "expected_deal_recommendation": "PROCEED_WITH_CONDITIONS",
+      "primary_ticker": "AAPL",
+      "edgar_cik": "0000320193"
+    }
+  },
+
+  {
+    "eval_id": "leg_005_palantir",
+    "description": "Palantir Technologies (PLTR) — mid-cap AI/data platform with limited legal exposure. Tests that the agent correctly identifies: minimal active litigation, no OFAC hits, complex government contract change-of-control provisions (government contracts may require novation on acquisition), and civil liberties controversy as reputational rather than legal risk. Expected: PROCEED, 0 dealbreakers.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Review all public legal records for Palantir Technologies. Map corporate structure, search litigation for the past 5 years, check IP ownership, screen regulatory compliance, and flag any dealbreakers."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "verify_corporate_structure",
+            "tool_input": {
+              "company_name": "Palantir Technologies",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "search_litigation_records",
+            "tool_input": {
+              "company_name": "Palantir Technologies",
+              "jurisdiction": "US"
+            }
+          },
+          {
+            "tool_name": "check_ip_ownership",
+            "tool_input": {
+              "company_name": "Palantir Technologies"
+            }
+          },
+          {
+            "tool_name": "screen_regulatory_compliance",
+            "tool_input": {
+              "business_description": "AI/data analytics platform for government and commercial enterprise",
+              "jurisdictions": ["US"]
+            }
+          },
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Palantir Technologies corporate structure: Delaware corporation (SEC CIK 0001321655); multi-class share structure (Class A/B/F — founders retain outsized voting control via Class F). Key subsidiaries: Palantir Technologies UK Ltd, Palantir Technologies GmbH (Germany). No sanctioned entities. Active litigation (past 5 years): minimal — primarily routine contract disputes; one settled employment class action (CA, 2022, $1.75M). No material pending litigation above $5M. IP: 350+ US patents and applications in data integration, ontology modeling, and AI/ML. No active patent infringement suits as defendant. GOVERNMENT CONTRACT CHANGE OF CONTROL: CRITICAL CONSIDERATION (not a dealbreaker but a condition) — Palantir holds classified contracts with DoD, NSA, CIA, DHS. Federal Acquisition Regulation (FAR) 42.1202 requires government approval (novation) for any assignment of government contracts upon change of ownership. Acquirer must be eligible for DoD security clearance sponsorship. Average novation timeline: 6-18 months. Failure to obtain novation could void up to 32% of Palantir revenue. OFAC: CLEAN. SDN check: no hits on Palantir or any known executive. Reputational note: civil liberties organizations have published criticism of Palantir's immigration enforcement contracts (ICE) and predictive policing deployments — public controversy, not legal liability. DEALBREAKERS: 0. SEC filing: CIK 0001321655."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Palantir Technologies",
+        "industry": "Data Analytics and AI Platforms",
+        "deal_value": 15000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_leg_005",
+        "deal_jurisdictions": ["US"],
+        "scope": "Legal due diligence — litigation, IP, corporate structure, regulatory compliance",
+        "acquirer_description": "Strategic acquirer seeking AI/data analytics capabilities — must be eligible for US government security clearance sponsorship"
+      }
+    },
+    "assertions": {
+      "output_schema": "LegalFindings",
+      "dealbreaker_count_max": 0,
+      "must_identify_conditions": ["government contract novation", "FAR", "change of control", "security clearance"],
+      "must_check_ofac": true,
+      "source_citation_required": true,
+      "citation_must_include_any": ["courtlistener.com", "sec.gov", "acquisition.gov", "CourtListener", "EDGAR"],
+      "min_findings_count": 2,
+      "expected_deal_recommendation": "PROCEED",
+      "primary_ticker": "PLTR",
+      "edgar_cik": "0001321655",
+      "special_consideration": "Government contract novation is a mandatory condition for this deal — must appear in change_of_control_clauses or regulatory_gaps output field"
+    }
+  }
+]

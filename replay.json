@@ -1,0 +1,17 @@
+{
+  "state": {
+    "target_company": "Salesforce",
+    "industry": "SaaS",
+    "deal_value": 50000000,
+    "deal_type": "acquisition",
+    "deal_id": "deal_test_001",
+    "deal_jurisdictions": [
+      "US"
+    ],
+    "scope": "Full acquisition due diligence — financial, legal, market, news/sentiment, and people/culture workstreams",
+    "acquirer_description": "Strategic acquirer in the enterprise software industry seeking to expand SaaS capabilities"
+  },
+  "queries": [
+    "Analyze Salesforce as an acquisition target. Industry is SaaS. Deal value is 50000000 USD. Deal ID is deal_test_001. Jurisdictions are US."
+  ]
+}

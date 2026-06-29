@@ -1,0 +1,391 @@
+[
+  {
+    "eval_id": "fin_001_salesforce",
+    "description": "Salesforce (CRM) — large SaaS acqui-hire target. Tests anomaly detection on high stock-based compensation and goodwill from Slack/Tableau acquisitions. Expected: no dealbreakers, but SBC and leverage flagged as conditions.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Analyze Salesforce financials for acquisition due diligence. Retrieve 3 years of filings, calculate ratios, build DCF, detect anomalies, and compare to SaaS benchmarks."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {
+              "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001108524&type=10-K&dateb=&owner=include&count=5"
+            }
+          },
+          {
+            "tool_name": "calculate_financial_ratios",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "build_dcf_model",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "analyze_cash_flow_quality",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "detect_accounting_anomalies",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "compare_industry_benchmarks",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Salesforce FY2024 (ended Jan 2024): Revenue $34.86B (FY2022 $26.49B → FY2023 $31.35B → FY2024 $34.86B, CAGR ~14.8%). Adjusted EBITDA margin ~21-23%. Net debt elevated post-Slack ($27.7B, 2021): total long-term debt ~$8.4B offset by ~$14B cash → net cash ~$5.6B. FCF $6.1B (FY2024). KEY ANOMALY: SBC expense ~$4.1B (FY2024) representing ~11.8% of revenue — far above SaaS median of 6-8% — must be flagged. Goodwill $48.6B from Slack and Tableau acquisitions. Beneish M-Score estimated within safe range (~-2.5). DCF: bear $140B, base $180B, bull $235B at 8% WACC, 3% terminal growth. No DEALBREAKERS. SEC filing: CIK 0001108524, 10-K filed 2024-03-07."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Salesforce",
+        "industry": "SaaS",
+        "deal_value": 200000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_fin_001",
+        "deal_jurisdictions": ["US"],
+        "scope": "Financial due diligence — 3-year historical analysis, DCF valuation, anomaly detection",
+        "acquirer_description": "Strategic enterprise software acquirer"
+      }
+    },
+    "assertions": {
+      "output_schema": "FinancialFindings",
+      "revenue_cagr_3yr_range": [0.10, 0.20],
+      "ebitda_margin_range": [0.15, 0.30],
+      "dealbreaker_count_max": 0,
+      "anomalies_must_include_any": ["stock-based compensation", "SBC", "goodwill", "Slack acquisition"],
+      "source_citation_required": true,
+      "min_findings_count": 3,
+      "expected_deal_recommendation": "PROCEED_WITH_CONDITIONS",
+      "edgar_cik": "0001108524",
+      "primary_ticker": "CRM"
+    }
+  },
+
+  {
+    "eval_id": "fin_002_microsoft",
+    "description": "Microsoft (MSFT) — mega-cap cloud and productivity leader. Reference POSITIVE case: clean financials, AAA credit, exceptional margins. Expected: PROCEED with zero dealbreakers. Tests that the agent correctly identifies a healthy acquisition target without false positives.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Analyze Microsoft financials for acquisition due diligence. Retrieve 3 years of filings, calculate ratios, build DCF, detect anomalies, and compare to cloud software benchmarks."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {
+              "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000789019&type=10-K&dateb=&owner=include&count=5"
+            }
+          },
+          {
+            "tool_name": "calculate_financial_ratios",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "build_dcf_model",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "analyze_cash_flow_quality",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "detect_accounting_anomalies",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "compare_industry_benchmarks",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Microsoft FY2024 (ended Jun 2024): Revenue $245.1B (FY2022 $198.3B → FY2023 $211.9B → FY2024 $245.1B, CAGR ~11.2%). GAAP operating margin 44.6% — top decile of all public companies. FCF ~$74.1B. Azure growing 29% YoY. No debt covenant concerns: Aaa/AAA rated, net cash positive. Beneish M-Score safely below -2.5 (no manipulation signal). SBC ~$9.7B but only ~4% of revenue (within acceptable range). DCF: bear $2.2T, base $2.8T, bull $3.6T at 7% WACC, 3.5% terminal growth. ZERO DEALBREAKERS. SEC filing: CIK 0000789019."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Microsoft",
+        "industry": "Cloud Software",
+        "deal_value": 3000000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_fin_002",
+        "deal_jurisdictions": ["US"],
+        "scope": "Financial due diligence — 3-year historical analysis, DCF valuation, anomaly detection",
+        "acquirer_description": "Strategic technology acquirer seeking cloud infrastructure capabilities"
+      }
+    },
+    "assertions": {
+      "output_schema": "FinancialFindings",
+      "revenue_cagr_3yr_range": [0.07, 0.16],
+      "ebitda_margin_range": [0.35, 0.55],
+      "dealbreaker_count_max": 0,
+      "anomalies_must_include_any": [],
+      "false_positive_check": "No material anomalies or dealbreakers should be raised for a AAA-rated company with 44%+ operating margins",
+      "source_citation_required": true,
+      "min_findings_count": 2,
+      "expected_deal_recommendation": "PROCEED",
+      "edgar_cik": "0000789019",
+      "primary_ticker": "MSFT"
+    }
+  },
+
+  {
+    "eval_id": "fin_003_tesla",
+    "description": "Tesla (TSLA) — EV manufacturer with volatile margins and contested revenue recognition on Full Self-Driving (FSD). Tests detection of: gross margin compression (from 25.6% in FY2022 to ~17.9% in FY2023), FSD deferred revenue accounting, and aggressive R&D capitalization. Expected: 1 anomaly flagged, PROCEED_WITH_CONDITIONS.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Analyze Tesla financials for acquisition due diligence. Retrieve 3 years of filings, calculate ratios, build DCF, detect anomalies, and compare to automotive and EV benchmarks."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {
+              "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001318605&type=10-K&dateb=&owner=include&count=5"
+            }
+          },
+          {
+            "tool_name": "calculate_financial_ratios",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "build_dcf_model",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "analyze_cash_flow_quality",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "detect_accounting_anomalies",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "compare_industry_benchmarks",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Tesla FY2023 (ended Dec 2023): Revenue $96.77B (FY2021 $53.8B → FY2022 $81.5B → FY2023 $96.8B, CAGR ~34%). GROSS MARGIN COMPRESSION: 25.6% (FY2022) → 17.9% (FY2023) driven by vehicle price cuts — significant negative trend. EBITDA margin ~11-13% adjusted. FCF $4.4B (FY2023). ANOMALIES: (1) FSD deferred revenue — Tesla recognizes FSD revenue ratably over estimated useful life; as of FY2023 deferred FSD revenue ~$1.07B; method is aggressive relative to peers who don't recognize until delivery. (2) Regulatory credit revenue ($1.79B in FY2023) — non-recurring, inflates EBITDA. DCF at 10% WACC: bear $300B, base $550B, bull $950B (high spread reflects execution risk). DEALBREAKERS: 0 (margin compression is concern, not disqualifying). SEC filing: CIK 0001318605."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Tesla",
+        "industry": "Electric Vehicles",
+        "deal_value": 800000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_fin_003",
+        "deal_jurisdictions": ["US"],
+        "scope": "Financial due diligence — 3-year historical analysis, DCF valuation, anomaly detection",
+        "acquirer_description": "Strategic automotive or energy technology acquirer"
+      }
+    },
+    "assertions": {
+      "output_schema": "FinancialFindings",
+      "revenue_cagr_3yr_range": [0.20, 0.50],
+      "ebitda_margin_range": [0.08, 0.20],
+      "dealbreaker_count_max": 1,
+      "anomalies_must_include_any": ["FSD", "Full Self-Driving", "deferred revenue", "regulatory credit", "margin compression", "gross margin"],
+      "min_anomaly_count": 1,
+      "source_citation_required": true,
+      "min_findings_count": 3,
+      "expected_deal_recommendation": "PROCEED_WITH_CONDITIONS",
+      "edgar_cik": "0001318605",
+      "primary_ticker": "TSLA"
+    }
+  },
+
+  {
+    "eval_id": "fin_004_apple",
+    "description": "Apple (AAPL) — consumer electronics and services juggernaut. Reference POSITIVE case testing that the agent correctly identifies exceptional financial health: ~74% Services gross margin, $113B+ FCF, net cash positive. Tests false-positive discipline — no dealbreakers should be raised. Also tests benchmark comparison for a diversified hardware+software company.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Analyze Apple financials for acquisition due diligence. Retrieve 3 years of filings, calculate ratios, build DCF, detect anomalies, and compare to consumer electronics and software benchmarks."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {
+              "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=&owner=include&count=5"
+            }
+          },
+          {
+            "tool_name": "calculate_financial_ratios",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "build_dcf_model",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "analyze_cash_flow_quality",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "detect_accounting_anomalies",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "compare_industry_benchmarks",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Apple FY2024 (ended Sep 2024): Revenue $391.0B (FY2022 $394.3B → FY2023 $383.3B → FY2024 $391.0B, CAGR ~-0.4% — low growth but Services accelerating). Services revenue $96.2B at ~74% gross margin (FY2024) — transformational mix shift. Total gross margin 46.2%. Net income $93.7B. FCF ~$113B. Massive capital return program (~$94B buybacks FY2024). Net cash ~$57B (cash $150B vs debt $93B). Beneish M-Score well below -2.5. SBC ~$11.7B (~3% of revenue — acceptable). No material anomalies. DCF: bear $2.8T, base $3.5T, bull $4.2T at 7.5% WACC, 3% terminal growth. ZERO DEALBREAKERS. SEC filing: CIK 0000320193."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Apple",
+        "industry": "Consumer Electronics and Services",
+        "deal_value": 3500000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_fin_004",
+        "deal_jurisdictions": ["US"],
+        "scope": "Financial due diligence — 3-year historical analysis, DCF valuation, anomaly detection",
+        "acquirer_description": "Strategic acquirer seeking dominant consumer platform"
+      }
+    },
+    "assertions": {
+      "output_schema": "FinancialFindings",
+      "revenue_cagr_3yr_range": [-0.02, 0.05],
+      "ebitda_margin_range": [0.30, 0.50],
+      "dealbreaker_count_max": 0,
+      "anomalies_must_include_any": [],
+      "false_positive_check": "Agent must not flag spurious dealbreakers for a company with $113B FCF and 46% gross margins",
+      "source_citation_required": true,
+      "min_findings_count": 2,
+      "expected_deal_recommendation": "PROCEED",
+      "edgar_cik": "0000320193",
+      "primary_ticker": "AAPL"
+    }
+  },
+
+  {
+    "eval_id": "fin_005_palantir",
+    "description": "Palantir (PLTR) — mid-cap AI/data analytics platform ($15B deal). Tests analysis of a smaller company with: historically large SBC (~$500M/year on ~$2.9B revenue = ~17% of revenue), government revenue concentration risk, and recent pivot to GAAP profitability. Dealbreaker_count must be 0; SBC and concentration must be flagged as conditions.",
+    "conversation": [
+      {
+        "user_content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Analyze Palantir financials for acquisition due diligence. Retrieve 3 years of filings, calculate ratios, build DCF, detect anomalies, and compare to data analytics and AI platform benchmarks."
+            }
+          ]
+        },
+        "expected_tool_use": [
+          {
+            "tool_name": "load_web_page",
+            "tool_input": {
+              "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001321655&type=10-K&dateb=&owner=include&count=5"
+            }
+          },
+          {
+            "tool_name": "calculate_financial_ratios",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "build_dcf_model",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "analyze_cash_flow_quality",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "detect_accounting_anomalies",
+            "tool_input": {}
+          },
+          {
+            "tool_name": "compare_industry_benchmarks",
+            "tool_input": {}
+          }
+        ],
+        "reference": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Palantir FY2024: Revenue $2.87B (FY2022 $1.91B → FY2023 $2.23B → FY2024 $2.87B, CAGR ~22.5%). GAAP net income positive: $462M (FY2024) — first full GAAP profitable year. Adjusted operating income $1.1B (~38% adjusted margin). KEY ANOMALIES: (1) SBC ~$491M (FY2024) = ~17.1% of revenue — materially above software median of 6-8%; must be normalized in all margin and FCF analysis. (2) Government revenue concentration: US Government ~32% of total revenue, creating budget-cycle dependency risk. FCF $1.15B (FY2024). Net cash ~$4.6B (no debt). Beneish M-Score within safe range. DCF: bear $8B, base $14B, bull $22B at 12% WACC (higher due to concentration risk), 4% terminal growth. DEALBREAKERS: 0. SEC filing: CIK 0001321655."
+            }
+          ]
+        }
+      }
+    ],
+    "session_input": {
+      "state": {
+        "target_company": "Palantir Technologies",
+        "industry": "Data Analytics and AI Platforms",
+        "deal_value": 15000000000,
+        "deal_type": "acquisition",
+        "deal_id": "eval_fin_005",
+        "deal_jurisdictions": ["US"],
+        "scope": "Financial due diligence — 3-year historical analysis, DCF valuation, anomaly detection",
+        "acquirer_description": "Strategic acquirer seeking AI/data analytics capabilities for enterprise clients"
+      }
+    },
+    "assertions": {
+      "output_schema": "FinancialFindings",
+      "revenue_cagr_3yr_range": [0.15, 0.35],
+      "ebitda_margin_range": [0.05, 0.25],
+      "dealbreaker_count_max": 0,
+      "anomalies_must_include_any": ["stock-based compensation", "SBC", "government concentration", "customer concentration", "dilution"],
+      "min_anomaly_count": 1,
+      "source_citation_required": true,
+      "min_findings_count": 3,
+      "expected_deal_recommendation": "PROCEED_WITH_CONDITIONS",
+      "edgar_cik": "0001321655",
+      "primary_ticker": "PLTR",
+      "deal_size_category": "mid_cap"
+    }
+  }
+]
