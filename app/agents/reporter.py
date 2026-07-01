@@ -52,7 +52,7 @@ Call compile_executive_summary with:
       "analysis_date": "<today UTC>",
   }
 
-The tool returns {"status": "success", "summary": "<text>"}.
+The tool returns (status="success", summary="<text>").
 Store the summary string — it becomes sections["executive_summary"].
 
 ════════════════════════════════════════════════════
@@ -62,7 +62,7 @@ Call generate_risk_matrix_chart with:
   risk_matrix = <risk_assessment.risk_matrix list>
   deal_id     = "{deal_id}"
 
-The tool returns {"status": "success", "chart_path": "<absolute PNG path>"}.
+The tool returns (status="success", chart_path="<absolute PNG path>").
 Store chart_path — pass it in chart_paths when calling render_pdf_report.
 
 If the tool returns status != "success", note the error in the appendix section
@@ -113,7 +113,7 @@ Call render_pdf_report with:
   chart_paths = [<chart_path from Step 2>]   (empty list if chart generation failed)
 
 The tool returns:
-  {"status": "success", "pdf_handle": "<uuid>", "renderer": "<engine>", "size_bytes": N}
+  (status="success", pdf_handle="<uuid>", renderer="<engine>", size_bytes=N)
 
 Store pdf_handle. If status != "success", record the error and set report_local_path
 to "PDF rendering failed — see error log." in the output schema, then skip Step 5.
@@ -127,7 +127,7 @@ Call save_report_locally with:
   filename   = "due_diligence_report.pdf"
 
 This tool requires analyst confirmation before writing. Wait for confirmation.
-The tool returns {"status": "success", "local_path": "<absolute path>"}.
+The tool returns (status="success", local_path="<absolute path>").
 
 Store local_path — this is report_local_path in the output schema.
 
@@ -169,9 +169,9 @@ def create_reporter_agent() -> Agent:
             "embeds the risk matrix chart, renders via weasyprint/reportlab, and saves "
             "to ./reports/{deal_id}/ after analyst confirmation."
         ),
-        output_schema=FinalReport,
         output_key="final_report",
         instruction=_INSTRUCTION,
+        include_contents="none",
         tools=[
             generate_risk_matrix_chart,
             compile_executive_summary,

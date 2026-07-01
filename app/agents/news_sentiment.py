@@ -2,14 +2,14 @@
 News & Sentiment Agent — Phase 6 implementation.
 
 Follows the spec in AGENTS.md §2.2. Model is gemini-2.0-flash (stable).
-Tools: five news_sentiment_tools.py functions + load_web_page.
+Tools: five news_sentiment_tools.py functions + fetch_url.
 No MCP server required — all sources are GDELT, Reddit, EDGAR, and public web.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools.load_web_page import load_web_page
 
 from app.schemas.models import NewsSentimentFindings
+from app.tools import fetch_url
 from app.tools.news_sentiment_tools import (
     analyze_media_sentiment,
     check_esg_ratings,
@@ -38,7 +38,19 @@ You have access to the following tools:
   check_esg_ratings         — EDGAR ESG filings + public ESG database links
   search_regulatory_press   — SEC enforcement filings + FTC/DOJ/CFPB press release URLs
   scan_social_media_signals — Reddit posts + social platform search URLs
-  load_web_page             — Fetch full text of any public URL
+  fetch_url                 — Fetch any public URL; returns {data_available: bool,
+                              content: str, status_code: int}
+
+IMPORTANT — fetch_url content is capped at 8,000 characters. News articles and
+GDELT results are typically short enough to fit. For SEC enforcement filings:
+  1. Use the EFTS search result URL directly — do not fetch a full 10-K.
+       https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=AP,34-12G4
+     Fetch each result's filing_url (these are short enforcement notices, not full filings).
+  2. For 8-K current reports (material events), fetch the 8-K index page first:
+       https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=8-K&dateRange=custom&startdt=<date>
+     Then fetch only the specific 8-K document URL (typically < 5,000 chars).
+  3. Reddit posts and news article excerpts (500-char limit per article per Step 1c)
+     are well within the 8,000-char cap — fetch these directly.
 
 ════════════════════════════════════════════════════
 STEP 1 — NEWS COVERAGE: LAST 24 MONTHS
@@ -53,15 +65,16 @@ STEP 1 — NEWS COVERAGE: LAST 24 MONTHS
     by URL.
 
 1c. For the 10 articles with the most recent dates (or highest apparent relevance
-    based on title), use load_web_page on each article.url to fetch the full text.
+    based on title), use fetch_url on each article.url to fetch the full text.
     Extract a content_excerpt of up to 500 characters from the article body.
     Add the content_excerpt back into the article dict before sentiment analysis.
 
-    IMPORTANT: If load_web_page returns a paywall, login wall, or empty body,
+    IMPORTANT: If fetch_url returns data_available=False, or the content field
+    appears to be a paywall or login redirect (very short body, no article text),
     mark that article as "title_only=True" and proceed — do not summarise content
     you have not read.
 
-1d. Supplement with load_web_page on search_urls.google_news and
+1d. Supplement with fetch_url on search_urls.google_news and
     search_urls.sec_news from the tool output. Note any 8-K current reports filed
     within the past 12 months that describe material events (regulatory actions,
     restatements, leadership changes, material contracts).
@@ -77,7 +90,7 @@ STEP 2 — SENTIMENT ANALYSIS
     (articles containing critical negative keywords).
 
 2b. Review each entry in flagged_articles. For every flagged article:
-    - Load its full text with load_web_page if not already fetched.
+    - Load its full text with fetch_url if not already fetched.
     - Determine whether the flag keyword (e.g. "lawsuit", "investigation") refers
       directly to the target company or to a third party mentioned in the article.
     - Only create a Finding for flags that directly involve the target company.
@@ -99,7 +112,7 @@ STEP 2 — SENTIMENT ANALYSIS
 STEP 3 — ESG RATINGS AND SUSTAINABILITY
 ════════════════════════════════════════════════════
 3a. Call check_esg_ratings(company_name="{target_company}").
-    If data_available=True, use load_web_page on up to 3 edgar_esg_filings
+    If data_available=True, use fetch_url on up to 3 edgar_esg_filings
     filing_index_url entries. In each filing, locate:
     - The ESG or sustainability section of the 10-K (often in Part I or a
       separate Exhibit 97 / TCFD appendix)
@@ -109,10 +122,10 @@ STEP 3 — ESG RATINGS AND SUSTAINABILITY
 
     Record every figure with its source URL and fiscal year.
 
-3b. Use load_web_page on public_esg_database_urls.cdp_search to check whether
+3b. Use fetch_url on public_esg_database_urls.cdp_search to check whether
     the company has submitted a CDP climate disclosure.
 
-3c. Use load_web_page on public_esg_database_urls.b_corp_search to confirm
+3c. Use fetch_url on public_esg_database_urls.b_corp_search to confirm
     B Corp certification status if applicable.
 
 3d. Populate esg_red_flags with concrete, cited items only:
@@ -129,12 +142,12 @@ STEP 4 — REGULATORY PRESS AND ENFORCEMENT
 ════════════════════════════════════════════════════
 4a. Call search_regulatory_press(company_name="{target_company}").
     Review sec_enforcement_filings_found. For each filing returned:
-    - Use load_web_page on filing_url to read the full enforcement action.
+    - Use fetch_url on filing_url to read the full enforcement action.
     - Extract: date, nature of charge, resolution status, financial penalties.
     - Classify severity: AP orders and cease-and-desist → CRITICAL; informal
       inquiries and letters of comment → LOW.
 
-4b. Use load_web_page on the following regulator search URLs from
+4b. Use fetch_url on the following regulator search URLs from
     regulator_search_urls (use all that are relevant to "{industry}"):
     - ftc_actions: FTC enforcement actions
     - doj_press: DOJ press releases
@@ -158,19 +171,19 @@ STEP 5 — SOCIAL MEDIA AND EXECUTIVE REPUTATION
     - r/[industry subreddit] → sector-specific discussion
     - r/[company_name] → direct brand/employee community
 
-5b. Use load_web_page on the 5 Reddit posts with the highest num_comments.
+5b. Use fetch_url on the 5 Reddit posts with the highest num_comments.
     Extract the post title, top-voted comment (if visible), and overall tone.
     Note the subreddit and post date.
 
-5c. Use load_web_page on social_search_urls.blind to check Blind for employee
+5c. Use fetch_url on social_search_urls.blind to check Blind for employee
     sentiment threads about the company. Blind is particularly relevant for
     tech/SaaS companies — note top complaints if accessible without login.
 
 5d. Search for executive reputation issues:
     - From the flagged_articles in Step 2 and Reddit posts in Step 5b, identify
       any mentions of named executives (CEO, CFO, CTO, founders).
-    - For each named executive, use load_web_page on:
-        https://news.google.com/search?q="{executive name}"+"{target_company}"
+    - For each named executive, use fetch_url on:
+        https://news.google.com/search?q="<executive name>"+"{target_company}"
       to check for misconduct allegations, prior company failures, or regulatory
       actions against the individual.
     - Populate executive_reputation_issues with one item per confirmed issue:
@@ -220,7 +233,7 @@ A finding is a dealbreaker if ANY of the following apply:
 
 4. Ongoing mass consumer boycott or reputational crisis with confirmed material
    customer defections, evidenced by public press releases from named customers
-   or earnings call transcripts disclosing churn (accessible via load_web_page).
+   or earnings call transcripts disclosing churn (accessible via fetch_url).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT SCHEMA MAPPING:
@@ -241,6 +254,8 @@ OUTPUT SCHEMA MAPPING:
 
 Evidence format for every Finding.evidence field:
   "Source: <full URL>, Title: <article/filing title>, Published: <YYYY-MM-DD>"
+
+IMPORTANT: Your output_key response must be concise. Write findings as a structured JSON-like summary only — no prose paragraphs, no repeated explanations. Maximum 2,000 words total. Every Finding object must be on one line. The risk_assessor downstream has a 200K token limit shared across all 5 workstreams.
 """
 
 
@@ -249,11 +264,10 @@ def create_news_sentiment_agent() -> Agent:
         name="news_sentiment_analyst",
         model="gemini-2.0-flash",
         description="Assesses the target's public media sentiment, ESG standing, regulatory press history, and executive reputation using public news and filings.",
-        output_schema=NewsSentimentFindings,
         output_key="news_sentiment_findings",
         instruction=_INSTRUCTION,
         tools=[
-            load_web_page,
+            fetch_url,
             search_news_coverage,
             analyze_media_sentiment,
             check_esg_ratings,

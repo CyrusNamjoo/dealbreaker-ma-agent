@@ -3,13 +3,13 @@ Financial Analyst Agent — Phase 3 implementation.
 
 Follows the spec in AGENTS.md §2.2. Model is gemini-2.0-flash (stable)
 rather than gemini-2.0-pro-exp (unstable). All five financial tools plus
-load_web_page are wired in.
+fetch_url are wired in.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools.load_web_page import load_web_page
 
 from app.schemas.models import FinancialFindings
+from app.tools import fetch_url
 from app.tools.financial_tools import (
     analyze_cash_flow_quality,
     build_dcf_model,
@@ -33,24 +33,55 @@ Deal context (from session state):
 ════════════════════════════════════════════════════
 STEP 1 — LOCATE THE COMPANY ON SEC EDGAR
 ════════════════════════════════════════════════════
-1a. Use load_web_page to fetch the EDGAR full-text search for 10-K filings:
+1a. Use fetch_url to fetch the EDGAR full-text search for 10-K filings:
       https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=10-K&dateRange=custom&startdt=2020-01-01
-    Extract the CIK and the three most recent accession numbers (annual filings).
+    If fetch_url returns data_available=False, note the error and proceed using
+    any known CIK; otherwise extract the CIK and the three most recent accession numbers.
 
 1b. For each accession number, fetch the filing index page:
       https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=<CIK>&type=10-K&dateb=&owner=include&count=10
     Identify the primary HTML or HTM document (the 10-K annual report).
+    Also derive the XBRL base URL for each filing (needed in Step 2):
+      accession_clean = accession_number with all dashes removed
+        (e.g. 0000320193-23-000106 → 000032019323000106)
+      filing_base_url = https://www.sec.gov/Archives/edgar/data/<CIK>/<accession_clean>/
 
-1c. If the company is not US-listed and has no SEC filings, use load_web_page to
+1c. If the company is not US-listed and has no SEC filings, use fetch_url to
     fetch equivalent public filings (UK Companies House, EU ESEF, ASX, etc.) and
     note the alternative source in every evidence field.
 
 ════════════════════════════════════════════════════
 STEP 2 — EXTRACT THREE YEARS OF FINANCIAL DATA
 ════════════════════════════════════════════════════
-For each of the three most recent annual filings, load the primary document
-with load_web_page and extract ALL of the following line items in USD as reported.
-Record the fiscal year label (e.g. "FY2023") and the source URL.
+IMPORTANT — fetch_url is capped at 8,000 characters. Do NOT fetch the full
+10-K narrative (hundreds of thousands of chars) and expect financial tables —
+they will be truncated away. Instead use the XBRL interactive-data R-pages,
+which are each < 8,000 chars and contain exactly the structured numbers needed.
+
+For each of the three most recent annual filings:
+
+  PREFERRED — XBRL R-pages (use filing_base_url from Step 1b):
+    Balance Sheet    : try filing_base_url + "R2.htm", then "R3.htm"
+                       (look for "Assets", "Liabilities", "Equity" keywords)
+    Income Statement : try filing_base_url + "R4.htm", then "R5.htm"
+                       (look for "Revenue", "Net income", "Gross profit" keywords)
+    Cash Flows       : try filing_base_url + "R7.htm", then "R6.htm", then "R8.htm"
+                       (look for "Operating activities", "Capital expenditures" keywords)
+    If the above page numbers don't match, fetch the XBRL viewer index:
+      filing_base_url + "MetaLinks.json"  or  filing_base_url + "R1.htm"
+    and scan for the correct R-page numbers from its table of contents.
+
+  FALLBACK — EFTS full-text search (if XBRL pages are unavailable):
+    Use fetch_url on the EDGAR EFTS search to find the specific section:
+      https://efts.sec.gov/LATEST/search-index?q="{target_company}"+"revenue"+"net+income"&forms=10-K&dateRange=custom&startdt=<year>-01-01&enddt=<year>-12-31
+    Fetch the specific document URL from the results — not the filing index.
+
+Each R-page fetch replaces fetching the whole annual report. Fetch one R-page
+per statement per year (3 statements × 3 years = up to 9 targeted fetches)
+rather than 3 massive document fetches.
+
+If fetch_url returns data_available=False for a filing, note the gap and skip
+that period. Record the fiscal year label (e.g. "FY2023") and the source URL.
 
 Income Statement:
   revenue, gross_profit, cogs, ebitda, ebit,
@@ -78,9 +109,9 @@ RULES:
 Assemble the three years into this structure (most-recent first):
   financials = {
       "periods": ["FY2023", "FY2022", "FY2021"],
-      "income_statements": [ {period, revenue, ...}, ... ],
-      "balance_sheets":    [ {period, cash, ...}, ... ],
-      "cash_flow_statements": [ {period, operating_cf, ...}, ... ],
+      "income_statements": [ <period, revenue, ...>, ... ],
+      "balance_sheets":    [ <period, cash, ...>, ... ],
+      "cash_flow_statements": [ <period, operating_cf, ...>, ... ],
   }
 
 ════════════════════════════════════════════════════
@@ -98,10 +129,10 @@ without at least one period of income statement + balance sheet data.
 ── 3b. DCF Valuation ───────────────────────────────
 Collect free_cash_flow values for available years (most-recent first) from
 your extracted cash_flow_statements. Then fetch the sector WACC from Damodaran:
-  load_web_page("https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/wacc.html")
+  fetch_url("https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/wacc.html")
 Match "{industry}" to the closest sector row. Extract the "Cost of Capital" figure.
 
-If the Damodaran page is unreachable or the sector is not found:
+If fetch_url returns data_available=False, or the sector is not found in the content:
   - Set dcf_value_bear = dcf_value_base = dcf_value_bull = 0.0
   - Add a LOW-severity Finding: "DCF not computed — WACC unavailable from public source."
   - Skip the build_dcf_model call entirely.
@@ -167,8 +198,9 @@ STEP 5 — IDENTIFY DEALBREAKERS
 A finding is a DEALBREAKER (is_dealbreaker=True, risk_level=CRITICAL) if ANY of:
 
 1. SEC enforcement action in the past 5 years:
-   Verify by loading:
+   Verify by fetching with fetch_url:
      https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=AP,34-12G4
+   If data_available=False, note the data gap as a LOW Finding.
    If results are found, the filing details become a CRITICAL Finding.
 
 2. Material financial restatement:
@@ -205,6 +237,8 @@ and add a LOW Finding explaining the gap and the URL where the data should be fo
 
 Citation format for every Finding.evidence field:
   "Source: <full URL>, Filing: <form type> <fiscal year>, Line item: <exact label>"
+
+IMPORTANT: Your output_key response must be concise. Write findings as a structured JSON-like summary only — no prose paragraphs, no repeated explanations. Maximum 2,000 words total. Every Finding object must be on one line. The risk_assessor downstream has a 200K token limit shared across all 5 workstreams.
 """
 
 
@@ -213,11 +247,10 @@ def create_financial_agent() -> Agent:
         name="financial_analyst",
         model="gemini-2.0-flash",
         description="Performs deep financial due diligence using public SEC filings and market data.",
-        output_schema=FinancialFindings,
         output_key="financial_findings",
         instruction=_INSTRUCTION,
         tools=[
-            load_web_page,
+            fetch_url,
             calculate_financial_ratios,
             build_dcf_model,
             analyze_cash_flow_quality,

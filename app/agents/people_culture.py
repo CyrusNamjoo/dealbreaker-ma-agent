@@ -2,15 +2,15 @@
 People & Culture Agent — Phase 6 implementation.
 
 Follows the spec in AGENTS.md §2.2. Model is gemini-2.0-flash (stable).
-Tools: five people_culture_tools.py functions + load_web_page.
+Tools: five people_culture_tools.py functions + fetch_url.
 No MCP server required — all sources are EDGAR proxy statements, GDELT,
 Reddit, Comparably, and other public web resources.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools.load_web_page import load_web_page
 
 from app.schemas.models import PeopleCultureFindings
+from app.tools import fetch_url
 from app.tools.people_culture_tools import (
     analyze_employee_review_themes,
     assess_culture_fit,
@@ -40,7 +40,23 @@ You have access to the following tools:
   fetch_glassdoor_data              — Reddit employee proxy + review platform URLs
   analyze_employee_review_themes    — Reddit theme extraction + review platform URLs
   assess_culture_fit                — EDGAR human capital disclosures + dimension framework
-  load_web_page                     — Fetch full text of any public URL
+  fetch_url                         — Fetch any public URL; returns {data_available: bool,
+                                    content: str, status_code: int}
+
+IMPORTANT — fetch_url content is capped at 8,000 characters. DEF 14A proxy
+statements are large — never fetch the full proxy expecting to read all sections.
+Follow this strategy:
+  1. Use EFTS to locate the specific proxy filing first:
+       https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=DEF+14A&dateRange=custom&startdt=2022-01-01
+     This returns short metadata records (fits in 8,000 chars). Extract the
+     filing_index_url, then fetch the index to find the specific exhibit URL.
+  2. For executive bios: search for the section document within the filing index
+     (look for files named "proxy.htm", "def14a.htm" or similar). These section
+     excerpts are often split across multiple short files — fetch each individually.
+  3. Reddit posts, Comparably overview pages, and CourtListener API JSON responses
+     are typically < 8,000 chars and can be fetched directly.
+  4. For Indeed/Glassdoor/Blind: fetch the public listing page (not login-protected
+     pages) — these are usually summary pages well within the char limit.
 
 ════════════════════════════════════════════════════
 STEP 1 — EXECUTIVE BACKGROUNDS AND TEAM COMPOSITION
@@ -49,9 +65,9 @@ STEP 1 — EXECUTIVE BACKGROUNDS AND TEAM COMPOSITION
     If data_available=False (company not in EDGAR), proceed to 1c.
 
 1b. For up to 3 filings in proxy_filings with a valid filing_index_url:
-    Use load_web_page on each filing_index_url to reach the EDGAR filing index page.
+    Use fetch_url on each filing_index_url to reach the EDGAR filing index page.
     From the index, identify the primary proxy document (usually the largest .htm or .pdf
-    file listed, or the one named "def14a" or "proxy"). Use load_web_page on that file.
+    file listed, or the one named "def14a" or "proxy"). Use fetch_url on that file.
     In the document, locate one of: "Executive Officers", "Directors and Executive Officers",
     or "Biographical Information" sections.
 
@@ -62,12 +78,12 @@ STEP 1 — EXECUTIVE BACKGROUNDS AND TEAM COMPOSITION
       - Any directorships at other public companies (indicates outside commitments)
 
     Format each entry for key_executives as:
-    "{Name} — {Title}, at company since {year}, prior: {prior roles from bio}"
+    "<Name> — <Title>, at company since <year>, prior: <prior roles from bio>"
     If tenure year is not stated, omit "at company since".
 
-1c. If EDGAR returns no proxy filings, use load_web_page on:
+1c. If EDGAR returns no proxy filings, use fetch_url on:
     https://www.sec.gov/cgi-bin/browse-edgar?company={target_company}&action=getcompany&type=DEF+14A&dateb=&owner=include&count=10
-    If still no results, the company may be private. Use load_web_page on the company's
+    If still no results, the company may be private. Use fetch_url on the company's
     public "About / Leadership" or "Investor Relations" page to identify named executives.
     Note explicitly: "Leadership data sourced from company website, not SEC filing."
 
@@ -77,7 +93,7 @@ STEP 1 — EXECUTIVE BACKGROUNDS AND TEAM COMPOSITION
     - Any executive where the proxy bio contains phrases like "key man", "critical to",
       or risk factor language in 10-K Item 1A that names them specifically.
     Populate key_person_dependencies with one entry per dependency:
-    "{Name} — {reason for dependency}, Source: {URL}"
+    "<Name> — <reason for dependency>, Source: <URL>"
     Empty list if no such dependency is identified.
 
 ════════════════════════════════════════════════════
@@ -91,19 +107,19 @@ STEP 2 — EXECUTIVE CONTROVERSY SCREENING
 2b. For every entry in results_by_executive:
     - Review gdelt_articles: note domain and article date.
     - Review controversy_signals (pre-filtered for critical keywords by the tool).
-    - For each controversy_signals entry, use load_web_page on the article URL.
+    - For each controversy_signals entry, use fetch_url on the article URL.
       Determine: is the named executive the SUBJECT of the allegation, or merely
       mentioned in passing? Only create a Finding if the executive is the subject.
 
-2c. Use load_web_page on:
-    https://www.courtlistener.com/api/rest/v4/dockets/?q={executive_name}&type=r&order_by=score+desc&format=json
+2c. Use fetch_url on:
+    https://www.courtlistener.com/api/rest/v4/dockets/?q=<executive_name>&type=r&order_by=score+desc&format=json
     for each executive with confirmed controversy signals from 2b.
     Look for active federal or state court cases naming the executive as a defendant.
     Record any active cases with: case_name, court, filing_date, docket_url.
 
 2d. Populate leadership_red_flags with one item per confirmed issue:
-    "{Executive Name} ({Title}) — {issue description}, Source: {URL}, Date: {YYYY-MM-DD},
-    Status: {active/resolved/alleged}"
+    "<Executive Name> (<Title>) — <issue description>, Source: <URL>, Date: <YYYY-MM-DD>,
+    Status: <active/resolved/alleged>"
     Empty list if no confirmed public issues are found.
 
 2e. Create a Finding for each confirmed red flag:
@@ -120,8 +136,8 @@ STEP 3 — EMPLOYEE SENTIMENT AND REVIEW PLATFORM SCORES
     Note reddit_sentiment_proxy and top_employee_themes_from_reddit.
     Retrieve platform_urls for use in 3b–3d.
 
-3b. Use load_web_page on platform_urls.comparably (e.g.
-    https://www.comparably.com/companies/{slug}).
+3b. Use fetch_url on platform_urls.comparably (e.g.
+    https://www.comparably.com/companies/<slug>).
     From the Comparably company overview page extract, if visible without login:
       - Overall culture score (shown as a number out of 100 OR a letter grade)
       - CEO approval percentage (shown as "X% approve of CEO")
@@ -133,9 +149,9 @@ STEP 3 — EMPLOYEE SENTIMENT AND REVIEW PLATFORM SCORES
     If the score is shown as a letter grade, convert: A+ → 97, A → 93, A- → 90,
     B+ → 87, B → 83, B- → 80, C+ → 77, C → 73, C- → 70, then divide by 20.
 
-    Also use load_web_page on platform_urls.comparably_ceo to get CEO approval pct.
+    Also use fetch_url on platform_urls.comparably_ceo to get CEO approval pct.
 
-3c. Use load_web_page on platform_urls.glassdoor_search.
+3c. Use fetch_url on platform_urls.glassdoor_search.
     If accessible without login, extract:
       - Overall rating (shown as a decimal out of 5.0) → glassdoor_overall_score
       - "CEO approval" percentage → glassdoor_ceo_approval_pct
@@ -143,7 +159,7 @@ STEP 3 — EMPLOYEE SENTIMENT AND REVIEW PLATFORM SCORES
     If Glassdoor returns a login wall, note: "Glassdoor requires authentication;
     manual review recommended." and rely on Comparably data from 3b.
 
-3d. Use load_web_page on platform_urls.indeed_company.
+3d. Use fetch_url on platform_urls.indeed_company.
     If accessible, extract the overall company rating (5.0 scale) as a cross-check.
     If it differs from Glassdoor/Comparably by more than 0.5 points, note the discrepancy.
 
@@ -166,19 +182,19 @@ STEP 4 — EMPLOYEE REVIEW THEME ANALYSIS
     Review negative_signals (pre-filtered posts with high negative keyword overlap).
 
 4b. For up to 3 entries in negative_signals with the highest score:
-    Use load_web_page on each Reddit post url to read the post body and top comments
+    Use fetch_url on each Reddit post url to read the post body and top comments
     (the first 500 characters of the comment section are sufficient).
     Note: Is the criticism specific (e.g. "CEO fired 30% of team via Slack") or general
     ("management is bad")? Specific, verifiable criticism carries more weight.
 
-4c. Also use load_web_page on review_platform_urls.blind_company (Blind).
+4c. Also use fetch_url on review_platform_urls.blind_company (Blind).
     Blind is publicly accessible for most companies without login and often surfaces
     frank compensation and culture complaints from tech/SaaS employees.
     Extract any visible review snippets or top-rated complaints.
 
 4d. Populate recurring_culture_complaints with the top recurring themes, as plain
     English strings, each citing at least one public source URL:
-    - Theme: "{plain English description}", Cited sources: {URL1}, {URL2}
+    - Theme: "<plain English description>", Cited sources: <URL1>, <URL2>
     Map internal theme names to plain English as follows:
       "compensation"        → "Compensation and equity concerns"
       "work_life_balance"   → "Work-life balance / burnout"
@@ -205,7 +221,7 @@ STEP 5 — CULTURE FIT ASSESSMENT
     acquirer. Investigate these first.
 
 5b. For each entry in culture_dimensions (at minimum all priority_dimensions):
-    Use load_web_page on the verification_url.
+    Use fetch_url on the verification_url.
     Assess the evidence against the dimension description. For example:
       - "Remote / hybrid work policy": does the target's filing reveal required
         office attendance? Is this in conflict with the acquirer's stated model?
@@ -301,6 +317,8 @@ OUTPUT SCHEMA MAPPING:
 
 Evidence format for every Finding.evidence field:
   "Source: <full URL>, Title: <document title or article headline>, Date: <YYYY-MM-DD>"
+
+IMPORTANT: Your output_key response must be concise. Write findings as a structured JSON-like summary only — no prose paragraphs, no repeated explanations. Maximum 2,000 words total. Every Finding object must be on one line. The risk_assessor downstream has a 200K token limit shared across all 5 workstreams.
 """
 
 
@@ -309,11 +327,10 @@ def create_people_culture_agent() -> Agent:
         name="people_culture_analyst",
         model="gemini-2.0-flash",
         description="Evaluates leadership quality, workforce culture, and people integration risks using public SEC filings, news, and review platform data.",
-        output_schema=PeopleCultureFindings,
         output_key="people_culture_findings",
         instruction=_INSTRUCTION,
         tools=[
-            load_web_page,
+            fetch_url,
             research_executive_backgrounds,
             check_executive_controversies,
             fetch_glassdoor_data,

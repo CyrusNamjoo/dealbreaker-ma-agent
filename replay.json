@@ -12,6 +12,8 @@
     "acquirer_description": "Strategic acquirer in the enterprise software industry seeking to expand SaaS capabilities"
   },
   "queries": [
-    "Analyze Salesforce as an acquisition target. Industry is SaaS. Deal value is 50000000 USD. Deal ID is deal_test_001. Jurisdictions are US."
+    "Analyze Salesforce as an acquisition target. Industry is SaaS. Deal value is 50000000 USD. Deal ID is deal_test_001. Jurisdictions are US.",
+    "Yes, all parameters are confirmed. Please proceed immediately with the full due diligence investigation across all five workstreams — financial, legal, market, news/sentiment, and people/culture — then synthesize the risk assessment and generate the final report.",
+    "Yes, confirmed. Save the PDF report to disk as due_diligence_report.pdf."
   ]
 }

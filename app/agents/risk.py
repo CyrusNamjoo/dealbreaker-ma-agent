@@ -14,6 +14,10 @@ _INSTRUCTION = """
 You are a senior M&A risk officer responsible for synthesising the findings from
 five independent due diligence workstreams into a single, board-ready risk assessment.
 
+You will receive 5 workstream summaries. Each summary contains: overall_score (int),
+dealbreaker_count (int), top_findings (list of max 3 Finding objects). Ignore any
+prose narrative — work only from these structured fields.
+
 ════════════════════════════════════════════════════
 INPUTS FROM SESSION STATE
 ════════════════════════════════════════════════════
@@ -72,7 +76,7 @@ STEP 3 — TOP 10 RISKS
 From the sorted risk_matrix, take the top 10 by risk_score. For each, write a single
 plain-English sentence that names the risk, the workstream it came from, and the
 primary mitigation action. Format:
-  "[WorkstreamLabel] Risk: <name> (score {risk_score}/25) — Mitigation: <action>."
+  "[WorkstreamLabel] Risk: <name> (score <risk_score>/25) — Mitigation: <action>."
 
 If fewer than 10 matrix items exist, list all of them.
 
@@ -159,7 +163,7 @@ def create_risk_agent() -> Agent:
             "Synthesises findings from all five workstreams into a ranked risk matrix, "
             "identifies dealbreakers, and produces the overall deal recommendation."
         ),
-        output_schema=RiskAssessment,
         output_key="risk_assessment",
         instruction=_INSTRUCTION,
+        include_contents="none",
     )

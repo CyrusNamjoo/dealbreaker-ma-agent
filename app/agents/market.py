@@ -2,14 +2,14 @@
 Market Research Agent — Phase 5 implementation.
 
 Follows the spec in AGENTS.md §2.2. Model is gemini-2.0-flash (stable).
-Tools: four market_tools.py functions + load_web_page.
+Tools: four market_tools.py functions + fetch_url.
 No MCP server required — all sources are public web and EDGAR.
 """
 
 from google.adk.agents import Agent
-from google.adk.tools.load_web_page import load_web_page
 
 from app.schemas.models import MarketFindings
+from app.tools import fetch_url
 from app.tools.market_tools import (
     analyze_competitive_landscape,
     evaluate_growth_drivers,
@@ -36,17 +36,33 @@ You have access to the following tools:
   analyze_competitive_landscape    — EDGAR-registered peer companies + competition section pointer
   score_customer_concentration     — HHI / top-N concentration from 10-K disclosures
   evaluate_growth_drivers          — PESTLE + Porter's Five Forces + sector tailwinds/headwinds
-  load_web_page                    — Fetch any public URL (EDGAR filings, government sites,
-                                     company pages, analyst press releases)
+  fetch_url                        — Fetch any public URL (EDGAR filings, government sites,
+                                     company pages, analyst press releases); returns
+                                     {data_available: bool, content: str, status_code: int}
+
+IMPORTANT — fetch_url content is capped at 8,000 characters. Never fetch a
+full 10-K document expecting to read all sections — most content will be cut off.
+Follow this fetch strategy for all SEC documents:
+  1. Use EDGAR EFTS full-text search to locate the specific section first:
+       https://efts.sec.gov/LATEST/search-index?q="{target_company}"+"<keyword>"&forms=10-K
+     For example, to find the Competition section:
+       https://efts.sec.gov/LATEST/search-index?q="{target_company}"+"competition"+"market+share"&forms=10-K
+     Extract the direct document URL from the EFTS results, then fetch only that URL.
+  2. Prefer short focused documents: 8-K current reports, press releases, S-1
+     registration statements (which have TAM sections near the start).
+  3. Government data URLs (BLS, Census, BEA) typically return compact JSON or
+     summary pages — these work well within the 8,000-char limit.
+  4. For competitor 10-Ks, fetch only the filing index page first to find the
+     specific exhibit with revenue figures rather than the full narrative.
 
 ════════════════════════════════════════════════════
 STEP 1 — LOCATE THE COMPANY AND EXTRACT MARKET CONTEXT
 ════════════════════════════════════════════════════
-1a. Use load_web_page to fetch the EDGAR full-text search for recent 10-K filings:
+1a. Use fetch_url to fetch the EDGAR full-text search for recent 10-K filings:
       https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=10-K&dateRange=custom&startdt=2020-01-01
     Extract: CIK, most recent accession number, and filing date.
 
-1b. Fetch the primary 10-K document using load_web_page on the filing index URL:
+1b. Fetch the primary 10-K document using fetch_url on the filing index URL:
       https://www.sec.gov/Archives/edgar/data/<CIK>/<accession_clean>/
     From the document extract the following — note the exact URL and page for each:
 
@@ -66,7 +82,7 @@ STEP 1 — LOCATE THE COMPANY AND EXTRACT MARKET CONTEXT
       - Revenue for the most recent three fiscal years
       - Management's discussion of market growth or contraction
 
-    If the company is not a US public registrant and has no SEC 10-K, use load_web_page
+    If the company is not a US public registrant and has no SEC 10-K, use fetch_url
     to search for equivalent public annual reports (UK Companies House, EU ESEF) and note
     the alternative source for every data point extracted.
 
@@ -77,12 +93,12 @@ STEP 2 — SIZE THE TOTAL ADDRESSABLE MARKET (TAM)
     This returns a list of EDGAR filings that cite TAM figures and government data URLs.
 
 2b. For up to 5 of the tam_reference_filings returned:
-    Use load_web_page on the filing_index_url to locate and read the "Market Opportunity",
+    Use fetch_url on the filing_index_url to locate and read the "Market Opportunity",
     "Industry Overview", or "Business — Market" section of each prospectus/10-K.
     Record: company name, the cited TAM figure (in USD), the reference year, and the
     third-party source credited (e.g. "Gartner 2023 report as cited in Salesforce S-1").
 
-2c. For independent corroboration, use load_web_page on at least 2 of the
+2c. For independent corroboration, use fetch_url on at least 2 of the
     government_data_urls returned (BLS, Census, BEA, or equivalent) to verify that
     the industry employment or output statistics are consistent with the TAM range.
 
@@ -113,22 +129,22 @@ STEP 3 — MAP THE COMPETITIVE LANDSCAPE
 3a. Call analyze_competitive_landscape(target_company="{target_company}", industry="{industry}").
     This returns peer_companies (EDGAR-registered peers) and target_competition_filing.
 
-3b. Use load_web_page on target_competition_filing.filing_index_url (from 3a) to read
+3b. Use fetch_url on target_competition_filing.filing_index_url (from 3a) to read
     the Competition section of the target's own most recent 10-K.
     Extract: all named direct competitors. These are the company's own public disclosures
     about who they compete with — cite by section and URL.
 
 3c. For the top 5 named competitors (prioritising those that are US public companies
-    with SEC filings), use load_web_page to fetch their most recent 10-K or annual
+    with SEC filings), use fetch_url to fetch their most recent 10-K or annual
     report and extract: revenue, revenue growth YoY, employee count if disclosed,
     and any publicly stated market share claims.
 
-    If a competitor is not publicly listed, use load_web_page on their company website
+    If a competitor is not publicly listed, use fetch_url on their company website
     and any publicly available press releases to find revenue or funding data.
 
 3d. Construct top_competitors for the schema:
     One entry per competitor in the format:
-    "{Competitor Name} — Revenue: ${X}M (FY{year}), Growth: {X}% YoY, Source: {URL}"
+    "<Competitor Name> — Revenue: $<X>M (FY<year>), Growth: <X>% YoY, Source: <URL>"
     List in descending order of estimated revenue where data is available.
     If revenue data is not public, note: "Revenue not publicly disclosed."
 
@@ -175,7 +191,7 @@ STEP 5 — EVALUATE GROWTH DRIVERS AND HEADWINDS
         company_description="<2-3 sentence description from Step 1b Item 1>",
     ).
 
-5b. For each tailwind returned, use load_web_page on the cited URL in the tailwind string
+5b. For each tailwind returned, use fetch_url on the cited URL in the tailwind string
     to verify the claim against the actual public source. Report only tailwinds that are
     confirmed by the public source. If the URL is unreachable or does not support the
     claim, omit that tailwind from the findings.
@@ -183,13 +199,13 @@ STEP 5 — EVALUATE GROWTH DRIVERS AND HEADWINDS
 5c. For each headwind, similarly verify. Confirmed headwinds become MEDIUM Findings
     unless they directly threaten the company's primary revenue stream (HIGH).
 
-5d. Use load_web_page on at least 2 PESTLE checklist URLs (from pestle_checklist in
+5d. Use fetch_url on at least 2 PESTLE checklist URLs (from pestle_checklist in
     the tool output) that are most relevant to "{industry}" to confirm the macro context.
 
 5e. Review Porter's Five Forces from the tool output:
     - For "bargaining_power_of_buyers": cross-reference with Step 4 customer concentration.
     - For "competitive_rivalry": cross-reference with Step 3 landscape data.
-    - For "threat_of_new_entrants": check for recent VC-funded entrants using load_web_page
+    - For "threat_of_new_entrants": check for recent VC-funded entrants using fetch_url
       on Crunchbase or PitchBook public pages for the sector.
     - Summarise each of the five forces as HIGH/MEDIUM/LOW with supporting evidence.
 
@@ -223,7 +239,7 @@ A finding is a dealbreaker if ANY of the following apply:
 
 2. A single customer accounts for > 50% of revenue AND that customer has publicly
    announced a vendor switch, RFP process, or contract non-renewal (found via
-   load_web_page on public news or the customer's own press releases).
+   fetch_url on public news or the customer's own press releases).
 
 3. The market is effectively a duopoly or monopoly — top-2 competitors combined hold
    > 80% market share as evidenced from public filings — and the target holds < 3%.
@@ -251,6 +267,8 @@ OUTPUT SCHEMA MAPPING:
 
 Evidence format for every Finding.evidence field:
   "Source: <full URL>, Document: <form type / report name>, Section: <heading>, Date: <YYYY-MM-DD>"
+
+IMPORTANT: Your output_key response must be concise. Write findings as a structured JSON-like summary only — no prose paragraphs, no repeated explanations. Maximum 2,000 words total. Every Finding object must be on one line. The risk_assessor downstream has a 200K token limit shared across all 5 workstreams.
 """
 
 
@@ -259,11 +277,10 @@ def create_market_agent() -> Agent:
         name="market_researcher",
         model="gemini-2.0-flash",
         description="Evaluates the target's market position, TAM, competitive dynamics, and customer concentration using public filings and government data.",
-        output_schema=MarketFindings,
         output_key="market_findings",
         instruction=_INSTRUCTION,
         tools=[
-            load_web_page,
+            fetch_url,
             fetch_market_size_data,
             analyze_competitive_landscape,
             score_customer_concentration,

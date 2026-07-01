@@ -2,7 +2,7 @@
 Legal Review Agent — Phase 4 implementation.
 
 Follows the spec in AGENTS.md §2.2. Model is gemini-2.0-flash (stable).
-Tools: four legal_tools.py functions + load_web_page + the legal DB MCP server
+Tools: four legal_tools.py functions + fetch_url + the legal DB MCP server
 (search_federal_court_records, check_ofac_sanctions, search_state_ucc_filings).
 """
 
@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 
 from google.adk.agents import Agent
-from google.adk.tools.load_web_page import load_web_page
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioServerParameters
 
 from app.schemas.models import LegalFindings
+from app.tools import fetch_url
 from app.tools.legal_tools import (
     check_ip_ownership,
     screen_regulatory_compliance,
@@ -44,7 +44,22 @@ You have access to the following tools:
   search_state_ucc_filings       — MCP: EDGAR UCC disclosures + state SOS portal links
   check_ip_ownership             — USPTO PatentsView patents + search URLs for TM/EPO
   screen_regulatory_compliance   — Regulatory checklist with agency search URLs
-  load_web_page                  — Fetch any public webpage (EDGAR filings, court dockets, agency databases)
+  fetch_url                      — Fetch any public URL; returns {data_available: bool, content: str,
+                                   status_code: int}. Check data_available before using content.
+
+IMPORTANT — fetch_url content is capped at 8,000 characters. Never fetch a
+full 10-K document expecting to read all sections — most content will be cut off.
+Follow this fetch strategy for all SEC documents:
+  1. Use EDGAR EFTS full-text search to locate the specific section/exhibit first:
+       https://efts.sec.gov/LATEST/search-index?q="{target_company}"+"<keyword>"&forms=<form>
+     Extract the direct document URL from the results before fetching.
+  2. Prefer short focused documents over the full 10-K narrative:
+       Exhibit 21 (Subsidiaries) — usually a standalone short file in the filing index.
+       DEF 14A proxy — fetch the filing index first, then the specific section URL.
+       8-K current reports — short by design.
+  3. When only a large document is available, fetch its filing index page first
+     (https://www.sec.gov/Archives/edgar/data/<CIK>/<accession_clean>/) and identify
+     a specific exhibit or sub-document URL rather than the main narrative file.
 
 ════════════════════════════════════════════════════
 STEP 1 — CORPORATE STRUCTURE AND UCC LIENS
@@ -54,12 +69,12 @@ STEP 1 — CORPORATE STRUCTURE AND UCC LIENS
     former names, tickers, and the list of recent_annual_filings.
 
     If data_available=False (private company): note this in corporate_structure_summary
-    and use the sos_search_urls with load_web_page to locate the state registration.
+    and use the sos_search_urls with fetch_url to locate the state registration.
 
-1b. Fetch the most recent 10-K primary document URL using load_web_page.
+1b. Fetch the most recent 10-K primary document URL using fetch_url.
     From the 10-K locate:
     - Exhibit 21 (Subsidiaries) — list all subsidiaries and their jurisdictions of
-      incorporation. If Exhibit 21 is a separate document, load it with load_web_page.
+      incorporation. If Exhibit 21 is a separate document, load it with fetch_url.
     - Item 1 (Business) — note the primary business description for Step 5.
     - Item 3 (Legal Proceedings) — extract all disclosed active litigation.
     - Item 1A (Risk Factors) — flag any regulatory, IP, or litigation risks disclosed.
@@ -70,7 +85,7 @@ STEP 1 — CORPORATE STRUCTURE AND UCC LIENS
 1c. Call search_state_ucc_filings(company_name="{target_company}", state="DE") via MCP.
     If state of incorporation is not Delaware, also call for the actual state of
     incorporation. Review edgar_ucc_disclosures for any public lien disclosures.
-    Visit sos_search_url with load_web_page to check for active liens.
+    Visit sos_search_url with fetch_url to check for active liens.
 
 Create Findings for:
   - Any subsidiary in a high-risk jurisdiction (OFAC-sanctioned country): CRITICAL
@@ -93,14 +108,14 @@ STEP 2 — LITIGATION AND ENFORCEMENT SEARCH
       - Patents/IP (830, 835, 840): HIGH if targeting core product
       - Contract disputes (190): MEDIUM
       - Employment class actions (442, 445): MEDIUM
-    Use load_web_page on case_url for the 5 highest-priority cases to read the
+    Use fetch_url on case_url for the 5 highest-priority cases to read the
     docket sheet and extract: claims, damages sought, case status, and next hearing.
 
 2d. Load the SEC enforcement search URL from search_litigation_records output
-    (sec_enforcement_search_url) using load_web_page. Report any SEC AP orders,
+    (sec_enforcement_search_url) using fetch_url. Report any SEC AP orders,
     cease-and-desist orders, or administrative proceedings within the past 5 years.
 
-2e. Load the DOJ/FBI FCPA digest using load_web_page:
+2e. Load the DOJ/FBI FCPA digest using fetch_url:
       https://www.justice.gov/criminal-fraud/fcpa/fcpa-digest
     Search for "{target_company}" in the result. Any FCPA enforcement is a dealbreaker.
 
@@ -116,17 +131,17 @@ STEP 3 — SANCTIONS AND DEBARMENT
 
 3b. Repeat check_ofac_sanctions for each subsidiary found in Exhibit 21 (Step 1b),
     and for each named C-suite officer found in Item 10 of the 10-K or the DEF 14A.
-    Load the DEF 14A proxy statement with load_web_page using:
+    Load the DEF 14A proxy statement with fetch_url using:
       https://efts.sec.gov/LATEST/search-index?q="{target_company}"&forms=DEF+14A&dateRange=custom&startdt=2022-01-01
     Extract named executive officers and directors for sanctions screening.
 
-3c. Load SAM.gov federal exclusions search with load_web_page:
+3c. Load SAM.gov federal exclusions search with fetch_url:
       https://sam.gov/search/?keywords={target_company}&sort=relevanceDesc&index=ei
     Any active exclusion or debarment is a DEALBREAKER.
 
 3d. Check the OFAC SDN list web portal directly:
       https://sanctionssearch.ofac.treas.gov/
-    Use load_web_page to confirm.
+    Use fetch_url to confirm.
 
 Create Findings:
   - OFAC SDN match on company or principal: CRITICAL, is_dealbreaker=True
@@ -141,13 +156,13 @@ STEP 4 — IP OWNERSHIP AND IP RISK ASSESSMENT
     for SaaS businesses — note it as context, not a risk, unless the business model
     depends on patent protection.
 
-4b. Use load_web_page on search_urls.google_patents from the tool output to confirm
+4b. Use fetch_url on search_urls.google_patents from the tool output to confirm
     patent portfolio and check for any encumbrances (IPR proceedings, assignments).
 
-4c. Use load_web_page on search_urls.uspto_trademark to check for registered trademarks
+4c. Use fetch_url on search_urls.uspto_trademark to check for registered trademarks
     and any pending opposition proceedings.
 
-4d. Use load_web_page on search_urls.epo_espacenet to check European patent coverage
+4d. Use fetch_url on search_urls.epo_espacenet to check European patent coverage
     if the company operates in the EU.
 
 4e. From the federal litigation cases found in Step 2, identify any cases with
@@ -175,11 +190,11 @@ STEP 5 — REGULATORY COMPLIANCE SCREENING
     This returns a compliance_checklist with regulatory bodies and search URLs.
 
 5b. For each checklist item with CRITICAL or HIGH-priority regulators
-    (OFAC, FinCEN, SEC, FDA, FAA, ITAR/EAR, OIG exclusions), use load_web_page
+    (OFAC, FinCEN, SEC, FDA, FAA, ITAR/EAR, OIG exclusions), use fetch_url
     on the search_url to verify current compliance status.
 
 5c. For the most relevant 3–5 regulators (based on industry), load their public
-    enforcement action databases using load_web_page and search for
+    enforcement action databases using fetch_url and search for
     "{target_company}". Report any findings from the past 5 years.
 
 5d. Check for specific sector-critical licences:
@@ -187,7 +202,7 @@ STEP 5 — REGULATORY COMPLIANCE SCREENING
     - Healthcare: OIG exclusions at https://oig.hhs.gov/exclusions/exclusions_list.asp
     - Telecom: FCC ULS at https://www.fcc.gov/uls/index.php
     - Defense: ITAR registration status at https://www.pmddtc.state.gov/
-    Load each relevant URL with load_web_page and document the result.
+    Load each relevant URL with fetch_url and document the result.
 
 Create Findings for each compliance gap. Missing a required licence is HIGH.
 Operating in a regulated sector without confirmed registration is CRITICAL.
@@ -254,6 +269,8 @@ OUTPUT SCHEMA MAPPING:
 
 Evidence format for every Finding.evidence field:
   "Source: <full URL>, Retrieved: <YYYY-MM-DD>, Identifier: <case number / CIK / docket>"
+
+IMPORTANT: Your output_key response must be concise. Write findings as a structured JSON-like summary only — no prose paragraphs, no repeated explanations. Maximum 2,000 words total. Every Finding object must be on one line. The risk_assessor downstream has a 200K token limit shared across all 5 workstreams.
 """
 
 
@@ -262,11 +279,10 @@ def create_legal_agent() -> Agent:
         name="legal_reviewer",
         model="gemini-2.0-flash",
         description="Reviews public legal records, regulatory filings, litigation history, IP ownership, and compliance status for M&A due diligence.",
-        output_schema=LegalFindings,
         output_key="legal_findings",
         instruction=_INSTRUCTION,
         tools=[
-            load_web_page,
+            fetch_url,
             search_litigation_records,
             check_ip_ownership,
             verify_corporate_structure,

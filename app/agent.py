@@ -1,3 +1,7 @@
+import os
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
 """
 DealBreaker root coordinator — Phase 7 full pipeline.
 
@@ -9,6 +13,7 @@ wraps it in the dealbreaker_coordinator LlmAgent with the full AGENTS.md §2.2 i
 from pathlib import Path
 
 from google.adk.agents import Agent, ParallelAgent, SequentialAgent
+from google.adk.agents.callback_context import CallbackContext
 from google.adk.apps import App
 from google.adk.artifacts import InMemoryArtifactService
 from google.adk.sessions import InMemorySessionService
@@ -62,6 +67,32 @@ pipeline = SequentialAgent(
 )
 
 # ---------------------------------------------------------------------------
+# Default session state
+# ---------------------------------------------------------------------------
+# adk web creates a fresh, empty session with no state. Seed it with a demo
+# deal so the pipeline has the variables it needs (target_company, deal_value,
+# etc.) without requiring replay.json. Only fills in keys that are missing, so
+# a replay-supplied or user-supplied session's state is left untouched.
+
+DEFAULT_SESSION_STATE = {
+    "target_company": "Salesforce",
+    "industry": "SaaS",
+    "deal_value": 50000000,
+    "deal_id": "deal_demo_001",
+    "deal_type": "acquisition",
+    "scope": "full",
+    "acquirer_description": "A mid-size enterprise software company focused on productivity and CRM tools",
+    "jurisdictions": ["US"],
+}
+
+
+async def seed_default_state(callback_context: CallbackContext) -> None:
+    for key, value in DEFAULT_SESSION_STATE.items():
+        if key not in callback_context.state:
+            callback_context.state[key] = value
+
+
+# ---------------------------------------------------------------------------
 # Root coordinator
 # ---------------------------------------------------------------------------
 
@@ -94,6 +125,7 @@ root_agent = Agent(
     description="Orchestrates a full M&A due diligence investigation.",
     instruction=_COORDINATOR_INSTRUCTION,
     sub_agents=[pipeline],
+    before_agent_callback=seed_default_state,
 )
 
 # ---------------------------------------------------------------------------
